@@ -103,7 +103,7 @@ namespace StarterAssets
         private int _animIDMotionSpeed;
 
 #if ENABLE_INPUT_SYSTEM
-        private PlayerInput _playerInput;
+        protected PlayerInput _playerInput;
 #endif
 
         // para poder cambiar o modificar estos objetos o valores por si el personaje propio necesita cosas unicas. 
@@ -129,7 +129,7 @@ namespace StarterAssets
         }
 
 
-        private void Awake()
+        protected virtual void Awake()
         {
             // get a reference to our main camera
             if (_mainCamera == null)
@@ -138,7 +138,7 @@ namespace StarterAssets
             }
         }
 
-        private void Start()
+        protected virtual void Start()
         {
             _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
 

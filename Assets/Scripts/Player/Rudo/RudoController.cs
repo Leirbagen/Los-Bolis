@@ -1,87 +1,67 @@
 using StarterAssets;
-using System.Collections;
 using UnityEngine;
 
-public class RudoController : ThirdPersonController
+[RequireComponent(typeof(ThirdPersonController))]
+public class RudoController : MonoBehaviour
 {
     [Header("Ataque Melee")]
-    public Transform puntoGolpe;
-    public Transform arma;
-    public float radioGolpe = 1.5f;
-    public LayerMask capasInteractuables; // tanto para los switches como para los enemigos
-    public float duracionGolpe = 0.15f;
-    public Vector3 anguloAtaque = new Vector3(90f, 0f, 0f);
+    public GameObject prefabArma;
+    public Transform puntoAgarre;
 
+    private ArmaMelee scriptArma;
     private bool estaAtacando = false;
-    private Vector3 rotacionArma;
 
-    protected override void Start()
+    private ThirdPersonController controladorBase;
+    public Animator animator;
+    public StarterAssetsInputs inputs;
+
+    private void Start()
     {
-        base.Start();
-        if (arma != null)
+        controladorBase = GetComponent<ThirdPersonController>();
+        inputs = GetComponent<StarterAssetsInputs>();
+        animator = GetComponent<Animator>();
+
+        controladorBase.canJump = false;
+
+        if (prefabArma != null && puntoAgarre != null)
         {
-            rotacionArma = arma.localEulerAngles;
+            GameObject nuevaArma = Instantiate(prefabArma, puntoAgarre.position, puntoAgarre.rotation, puntoAgarre);
+            scriptArma = nuevaArma.GetComponent<ArmaMelee>();
         }
     }
 
-    protected override void Update()
+    private void Update()
     {
-        base.Update();
-
-        if (Input.GetMouseButtonDown(0) && !estaAtacando && Grounded)
+        if (inputs.attack && !estaAtacando && controladorBase.Grounded)
         {
-            Debug.Log("¡Se presionó la tecla de ataque!");
-            StartCoroutine(AtaqueMelee());
+            inputs.attack = false;
+            EjecutarAtaque();
         }
     }
 
-    private IEnumerator AtaqueMelee()
+    private void EjecutarAtaque()
     {
         estaAtacando = true;
+        controladorBase.canMove = false;
 
-        Quaternion rotacionInicial = Quaternion.Euler(rotacionArma);
-        Quaternion rotacionFinal = rotacionInicial * Quaternion.Euler(anguloAtaque);
-        float tiempo = 0f;
-
-        // la rotacion del arma simulando el ataque 
-        while (tiempo < duracionGolpe)
+        if (animator != null)
         {
-            tiempo += Time.deltaTime;
-            if (arma != null) arma.localRotation = Quaternion.Slerp(rotacionInicial, rotacionFinal, tiempo / duracionGolpe);
-            yield return null; // Espera al siguiente frame
+            animator.SetTrigger("Ataque");
         }
-        arma.localRotation = rotacionFinal; // Asegura que llegue exactamente a la posición final
-
-        Collider[] hits = Physics.OverlapSphere(puntoGolpe.position, radioGolpe, capasInteractuables);
-        foreach (var hit in hits)
-        {
-            // aca podria estar la logica de implementar para los switches, si detecta que el hit tiene quizas una interfaz de daño para los enemigos
-            // o para los switches, por ahora no. 
-        }
-
-        yield return new WaitForSeconds(0.1f); // Pequeña pausa con el arma 
-
-        tiempo = 0f;
-        // Subiendo el arma a su posición original
-        while (tiempo < duracionGolpe)
-        {
-            tiempo += Time.deltaTime;
-            if (arma != null) arma.localRotation = Quaternion.Slerp(rotacionFinal, rotacionInicial, tiempo / duracionGolpe);
-            yield return null;
-        }
-        if (arma != null) arma.localRotation = rotacionInicial;
-
-        yield return new WaitForSeconds(0.5f);
-        estaAtacando = false;
+    }
+    public void ActivarDaño()
+    {
+        if (scriptArma != null) scriptArma.ActivarHitbox(true);
     }
 
-    private void OnDrawGizmosSelected()
+    public void DesactivarDaño()
     {
-        // Dibuja una esfera roja en el editor para visualizar el área de daño
-        if (puntoGolpe != null)
-        {
-            Gizmos.color = new Color(1, 0, 0, 0.5f);
-            Gizmos.DrawSphere(puntoGolpe.position, radioGolpe);
-        }
+        if (scriptArma != null) scriptArma.ActivarHitbox(false);
+    }
+
+    public void TerminarAtaque()
+    {
+        controladorBase.canMove = true;
+        estaAtacando = false; 
     }
 }

@@ -9,13 +9,17 @@ public class RudoController : MonoBehaviour
 {
     [Header("Inventario de Armas")]
     public Transform puntoAgarre;
-    public GameObject prefabArma;  
-    public GameObject prefabHonda; 
+    public GameObject prefabArma;
+    public GameObject prefabHonda;
+
+    [Header("Cámara de Apuntado")]
+    public GameObject camaraApuntado;
+    public GameObject miraUI;
 
     private ArmaMelee scriptArma;
     private ArmaDistancia scriptHonda;
 
-    private int armaActual = 1; 
+    private int armaActual = 1;
     private bool estaAtacando = false;
 
     private ThirdPersonController controladorBase;
@@ -42,6 +46,11 @@ public class RudoController : MonoBehaviour
         {
             GameObject nuevaHonda = Instantiate(prefabHonda, puntoAgarre.position, puntoAgarre.rotation, puntoAgarre);
             scriptHonda = nuevaHonda.GetComponent<ArmaDistancia>();
+        }
+
+        if (camaraApuntado != null)
+        {
+            camaraApuntado.SetActive(false);
         }
 
         CambiarArma(1);
@@ -71,7 +80,20 @@ public class RudoController : MonoBehaviour
         {
             if (estaApuntando && controladorBase.Grounded)
             {
-                controladorBase.canMove = false;
+                controladorBase.canMove = true;
+                controladorBase.isStrafing = true;
+                inputs.move.y = 0f;
+                inputs.sprint = false;
+                // Encendemos la cámara de hombro,  Cinemachine hace el zoom solo
+                if (camaraApuntado != null && !camaraApuntado.activeSelf)
+                {
+                    camaraApuntado.SetActive(true);
+                }
+                if (miraUI != null && !miraUI.activeSelf) 
+                {
+                    miraUI.SetActive(true);
+                }
+
                 RotarConCamara();
                 scriptHonda.MostrarTrayectoria(true);
 
@@ -83,6 +105,17 @@ public class RudoController : MonoBehaviour
             }
             else
             {
+                controladorBase.isStrafing = false;
+                // Apagamos la cámara de hombro para regresar a PlayerFollowCamera
+                if (camaraApuntado != null && camaraApuntado.activeSelf)
+                {
+                    camaraApuntado.SetActive(false);
+                }
+                if (miraUI != null && miraUI.activeSelf)
+                {
+                    miraUI.SetActive(false);
+                }
+
                 scriptHonda.MostrarTrayectoria(false);
                 controladorBase.canMove = true;
                 inputs.attack = false;
@@ -94,10 +127,13 @@ public class RudoController : MonoBehaviour
     {
         armaActual = nuevaArma;
 
-        scriptArma.gameObject.SetActive(armaActual == 1);
-        scriptHonda.gameObject.SetActive(armaActual == 2);
+        if (scriptArma != null) scriptArma.gameObject.SetActive(armaActual == 1);
+        if (scriptHonda != null) scriptHonda.gameObject.SetActive(armaActual == 2);
+        if (camaraApuntado != null) camaraApuntado.SetActive(false);
+        if (miraUI != null) miraUI.SetActive(false);
 
         controladorBase.canMove = true;
+        controladorBase.isStrafing = false;
     }
 
     private void RotarConCamara()

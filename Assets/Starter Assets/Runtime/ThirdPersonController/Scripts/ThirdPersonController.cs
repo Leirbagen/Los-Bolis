@@ -17,6 +17,7 @@ namespace StarterAssets
         [Header("HABILIDADES DISPONIBLES")]
         public bool canJump = true;
         public bool canMove = true;
+        public bool isStrafing = false;
 
         [Header("Player")]
         [Tooltip("Move speed of the character in m/s")]
@@ -259,7 +260,7 @@ namespace StarterAssets
 
             // note: Vector2's != operator uses approximation so is not floating point error prone, and is cheaper than magnitude
             // if there is a move input rotate player when the player is moving
-            if (_input.move != Vector2.zero && canMove)
+            if (_input.move != Vector2.zero && canMove && !isStrafing)
             {
                 _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg +
                                   _mainCamera.transform.eulerAngles.y;
@@ -271,11 +272,22 @@ namespace StarterAssets
             }
 
 
-            Vector3 targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
 
-            // move the player
-            _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
-                             new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+
+            Vector3 targetDirection;
+
+            if (isStrafing)
+            {
+                targetDirection = Quaternion.Euler(0.0f, _mainCamera.transform.eulerAngles.y, 0.0f) * inputDirection;
+            }
+            else 
+            {
+                targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
+            }
+
+                // move the player
+                _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
+                                 new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
 
             // update animator if using character
             if (_hasAnimator)

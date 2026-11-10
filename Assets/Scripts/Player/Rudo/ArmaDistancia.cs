@@ -29,8 +29,22 @@ public class ArmaDistancia : MonoBehaviour
 
     public Vector3 CalcularVelocidadInicial()
     {
-        Vector3 direccion = (camaraPrincipal.forward + Vector3.up * inclinacionArriba).normalized;
-        return direccion * fuerzaDisparo;
+        Ray rayoCentro = new Ray(camaraPrincipal.position, camaraPrincipal.forward);
+        Vector3 puntoObjetivo;
+
+        if (Physics.Raycast(rayoCentro, out RaycastHit hit, 50f))
+        {
+            puntoObjetivo = hit.point;
+        }
+        else
+        {
+            puntoObjetivo = camaraPrincipal.position + camaraPrincipal.forward * 30f;
+        }
+
+        Vector3 direccionHaciaMira = (puntoObjetivo - transform.position).normalized;
+
+        Vector3 direccionFinal = (direccionHaciaMira + Vector3.up * inclinacionArriba).normalized;
+        return direccionFinal * fuerzaDisparo;
     }
 
     public void MostrarTrayectoria(bool estado)

@@ -710,7 +710,7 @@ GameObject:
   - component: {fileID: 1512422222}
   m_Layer: 0
   m_Name: 2
-  m_TagString: Escudo_Olaf
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -901,18 +901,15 @@ MonoBehaviour:
   Salud_Actual: 3
   Es_Activo: 1
   Estado_Actual: 0
-  Vector_Movimiento: {x: 0, y: 0, z: 0}
-  Direccion_Mirada: {x: 0, y: 1}
   En_Suelo: 1
   Vel_Giro_Actual: 360
   Tiempo_Aturdido: 0
-  multiplicadorVelocidadEmbestida: 2
+  velocidadBase: 4
+  velocidadEmbestida: 8.5
+  giroDuroEmbestida: 1
   duracionAturdido: 1.5
   fuerzaRebote: 6
-  duracionRebote: 0.25
   sensorCasco: {fileID: 501407455}
-  radioInteraccion: 1.5
-  velocidadEscalera: 3.5
 --- !u!1001 &2052839511
 PrefabInstance:
   m_ObjectHideFlags: 0

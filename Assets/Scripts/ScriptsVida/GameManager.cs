@@ -9,8 +9,8 @@ public class GameManager : MonoBehaviour
     [Header("Sistema de Cambio de Personaje")]
     public GameObject[] armaduras;
 
-    [Header("Sistema de Cámaras")]
-    public GameObject[] camarasPrincipales;
+    [Header("Sistema de Cámaras (SOLO VIRTUALES)")]
+    // ELIMINADO: camarasPrincipales. ¡Solo debe haber 1 Main Camera en la escena!
     public GameObject[] camarasVirtuales;
 
     private int indiceActual = 0;
@@ -20,10 +20,6 @@ public class GameManager : MonoBehaviour
         if (Instancia == null) { Instancia = this; }
         else { Destroy(gameObject); }
 
-        // LA MAGIA: Apagamos los vikingos 2 y 3 ANTES de que Unity inicie los teclados.
-        // Empezamos el ciclo desde el 1, dejando al Elemento 0 intacto.
-
-
         for (int i = 0; i < armaduras.Length; i++)
         {
             CambiarEstado(i, false);
@@ -32,52 +28,53 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        // Nos aseguramos de que el Elemento 0 esté 100% encendido al iniciar
         CambiarEstado(0, true);
         Debug.Log("Controlando al personaje 1");
     }
 
     private void Update()
     {
-        // Detecta el cambio de personaje
         if (Input.GetKeyDown(KeyCode.M))
         {
-            // 1. Apagamos el vikingo actual soltando el teclado
             CambiarEstado(indiceActual, false);
 
-            // 2. Pasamos al siguiente
             indiceActual++;
             if (indiceActual >= armaduras.Length)
             {
                 indiceActual = 0;
             }
 
-            // 3. Encendemos el nuevo vikingo, quien ahora tomará el teclado limpio
             CambiarEstado(indiceActual, true);
-
             Debug.Log("Controlando al personaje " + (indiceActual + 1));
         }
     }
 
-    // Método universal para encender o apagar todo lo de un vikingo
     private void CambiarEstado(int indice, bool estado)
     {
         if (armaduras[indice] != null)
         {
+            // 1. Apagamos/Encendemos el sistema de movimiento base
             MonoBehaviour tpc = armaduras[indice].GetComponent("ThirdPersonController") as MonoBehaviour;
             MonoBehaviour playerInput = armaduras[indice].GetComponent("PlayerInput") as MonoBehaviour;
             MonoBehaviour starterInputs = armaduras[indice].GetComponent("StarterAssetsInputs") as MonoBehaviour;
 
+            // 2. Apagamos/Encendemos la LÓGICA PERSONALIZADA (Tu Rudo y el de tus compañeros)
+            MonoBehaviour rudoCtrl = armaduras[indice].GetComponent("RudoController") as MonoBehaviour;
+            // Dile a tus compañeros que agreguen sus scripts aquí de la misma forma:
+            // MonoBehaviour vikingo2Ctrl = armaduras[indice].GetComponent("BaleogController") as MonoBehaviour;
+            // MonoBehaviour vikingo3Ctrl = armaduras[indice].GetComponent("ErikController") as MonoBehaviour;
+
             if (tpc != null) tpc.enabled = estado;
             if (playerInput != null) playerInput.enabled = estado;
             if (starterInputs != null) starterInputs.enabled = estado;
+
+            if (rudoCtrl != null) rudoCtrl.enabled = estado;
+            // Si agregaron los de arriba, enciéndanlos aquí:
+            // if (vikingo2Ctrl != null) vikingo2Ctrl.enabled = estado;
+            // if (vikingo3Ctrl != null) vikingo3Ctrl.enabled = estado;
         }
 
-        if (camarasPrincipales.Length > indice && camarasPrincipales[indice] != null)
-        {
-            camarasPrincipales[indice].SetActive(estado);
-        }
-
+        // 3. Manejo de cámaras: Cinemachine hace la transición sola al activar la cámara virtual.
         if (camarasVirtuales.Length > indice && camarasVirtuales[indice] != null)
         {
             camarasVirtuales[indice].SetActive(estado);

@@ -1069,7 +1069,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 8944336655422409496, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: field of view
-      value: 30.06
+      value: 40
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409496, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: far clip plane
@@ -1089,7 +1089,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409503, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.36007825
+      value: -0.26907825
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409503, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: m_LocalPosition.y
@@ -1097,7 +1097,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409503, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -8.219999
+      value: -11.62
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409503, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: m_LocalRotation.w
@@ -1538,6 +1538,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2594186142650229532, guid: 99d319f25799bfa48b3743dcf9f3d12c, type: 3}
+      propertyPath: capaEnemigos.m_Bits
+      value: 64
+      objectReference: {fileID: 0}
     - target: {fileID: 7271108989982230865, guid: 99d319f25799bfa48b3743dcf9f3d12c, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.26907825

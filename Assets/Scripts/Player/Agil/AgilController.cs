@@ -1,5 +1,8 @@
 using StarterAssets;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 [RequireComponent(typeof(ThirdPersonController))]
 public class AgilController : MonoBehaviour
@@ -14,35 +17,45 @@ public class AgilController : MonoBehaviour
         Muerto
     }
 
-    [Header("1. Variables del Personaje (Tabla PDF)")]
+    [Header("1. Estado del Personaje")]
     public int Salud_Actual = 3;
     public bool Es_Activo = true;
     public EstadoAgil Estado_Actual = EstadoAgil.En_Reposo;
     public bool En_Suelo = true;
-    public float Vel_Giro_Actual = 360f;
     public float Tiempo_Aturdido = 0.0f;
 
-    [Header("2. Habilidad Principal: Embestida y Choques")]
-    [Tooltip("Velocidad normal al moverse con WASD")]
-    public float velocidadBase = 4.0f;
-    [Tooltip("Velocidad turbo durante la embestida")]
-    public float velocidadEmbestida = 8.5f;
-    [Tooltip("Qué tanto le cuesta girar al embestir (mayor valor = giro más duro)")]
-    public float giroDuroEmbestida = 1.0f;
-    public float duracionAturdido = 1.5f;
-    public float fuerzaRebote = 6.0f;
+    [Header("2. Control Pesado en Embestida (Cámara y Giro)")]
+    [Tooltip("Grados máximos que puede girar por segundo al embestir (menor = más difícil esquivar)")]
+    public float gradosGiroPorSegundo = 25.0f;
+    [Tooltip("Multiplica la velocidad de la cámara al embestir (0.15 = cámara 85% más lenta)")]
+    [Range(0.02f, 0.5f)]
+    public float sensibilidadCamaraEmbestida = 0.12f;
+    [Tooltip("Límite máximo de giro de cámara por fotograma durante la embestida")]
+    public float limiteVelocidadCamara = 0.35f;
+    [Tooltip("Altura de salto durante la embestida")]
+    public float saltoEnEmbestida = 2.5f;
+
+    [Header("3. Choques, Retroceso y Penalizaciones")]
+    public float penalizacionMuroSolido = 5.0f;
+    public float penalizacionMuroRompible = 3.0f;
+    [Tooltip("Fuerza del empuje hacia atrás al chocar")]
+    public float fuerzaRebote = 8.0f;
+    [Tooltip("Duración del empujón hacia atrás en segundos")]
+    public float duracionRebote = 0.35f;
     public SensorCascoAgil sensorCasco;
 
-    // Referencias internas (mismo estilo que RudoController)
     private ThirdPersonController controladorBase;
     private CharacterController characterController;
     private StarterAssetsInputs inputs;
     private Animator animator;
+    private Transform camaraPrincipal;
 
-    private float giroNormalBase;
+    private float giroNormalOriginal;
+    private float saltoNormalOriginal;
     private float timerRebote = 0f;
     private Vector3 direccionRebote;
-    private bool enSaltoLargo = false;
+    private bool embestidaActiva = false;
+    private float anguloCarreraActual = 0f;
 
     private void Start()
     {
@@ -50,11 +63,10 @@ public class AgilController : MonoBehaviour
         characterController = GetComponent<CharacterController>();
         inputs = GetComponent<StarterAssetsInputs>();
         animator = GetComponent<Animator>();
+        if (Camera.main != null) camaraPrincipal = Camera.main.transform;
 
-        // Anulamos el Sprint de Shift por defecto para que solo corra más rápido al Embestir
-        controladorBase.MoveSpeed = velocidadBase;
-        controladorBase.SprintSpeed = velocidadBase;
-        giroNormalBase = controladorBase.RotationSmoothTime;
+        giroNormalOriginal = controladorBase.RotationSmoothTime;
+        saltoNormalOriginal = controladorBase.JumpHeight;
 
         if (sensorCasco == null) sensorCasco = GetComponentInChildren<SensorCascoAgil>();
         if (sensorCasco != null)
@@ -68,89 +80,109 @@ public class AgilController : MonoBehaviour
     {
         if (Estado_Actual == EstadoAgil.Muerto) return;
 
-        // Si no es el vikingo activo, se queda quieto en reposo
-        if (!Es_Activo) return;
-
-        En_Suelo = controladorBase.Grounded;
-
-        // Empuje físico hacia atrás cuando choca contra un muro o bloque
-        if (timerRebote > 0f)
-        {
-            timerRebote -= Time.deltaTime;
-            characterController.Move(direccionRebote * Time.deltaTime);
-        }
-
-        // Estado Aturdido: bloqueado por 1.5 segundos tras chocar de frente
+        // Estado Aturdido: aplica el retroceso físico y congela por completo al personaje y la cámara
         if (Estado_Actual == EstadoAgil.Aturdido)
         {
+            inputs.move = Vector2.zero;
+            inputs.look = Vector2.zero;
+            inputs.jump = false;
+            inputs.sprint = false;
+
+            // Aplicamos el retroceso hacia atrás (desacelerando suave) + gravedad para no flotar
+            Vector3 movimientoRebote = Vector3.zero;
+            if (timerRebote > 0f)
+            {
+                timerRebote -= Time.deltaTime;
+                float proporcion = Mathf.Clamp01(timerRebote / duracionRebote);
+                movimientoRebote = direccionRebote * proporcion;
+            }
+            movimientoRebote.y = -15.0f; // Gravedad constante hacia el suelo
+            characterController.Move(movimientoRebote * Time.deltaTime);
+
             Tiempo_Aturdido -= Time.deltaTime;
             if (Tiempo_Aturdido <= 0f)
             {
                 Tiempo_Aturdido = 0f;
-                DetenerEmbestida();
                 Estado_Actual = EstadoAgil.En_Reposo;
+                if (Es_Activo) DesbloquearPersonajeYCamara();
             }
             return;
         }
 
-        ActualizarMovimientoYEmbestida();
-    }
+        En_Suelo = controladorBase.Grounded;
 
-    private void ActualizarMovimientoYEmbestida()
-    {
-        // Se puede embestir manteniendo Shift (inputs.sprint) o con el botón de ataque (Clic Izquierdo)
-        bool quiereEmbestir = inputs.sprint || inputs.attack;
+        if (!Es_Activo) return;
 
-        // 1. Lógica en el aire (Salto normal o Salto Largo si venía embistiendo)
+        // Activar / Desactivar embestida con un toque de Shift
+        if (PresionoToggleEmbestida())
+        {
+            if (embestidaActiva) DetenerEmbestida();
+            else if (En_Suelo) IniciarEmbestida();
+        }
+
+        inputs.sprint = embestidaActiva;
+
+        if (embestidaActiva)
+        {
+            Estado_Actual = En_Suelo ? EstadoAgil.Embistiendo : EstadoAgil.Saltando;
+            ProcesarGiroPesadoEmbestida();
+            return;
+        }
+
         if (!En_Suelo)
         {
-            if (Estado_Actual == EstadoAgil.Embistiendo)
-            {
-                enSaltoLargo = true; // Conserva la velocidad turbo en el aire
-                if (sensorCasco != null) sensorCasco.ActivarSensor(false);
-            }
             Estado_Actual = EstadoAgil.Saltando;
             return;
         }
 
-        // Al aterrizar de un salto largo, si ya no presiona embestir, vuelve a velocidad normal
-        if (enSaltoLargo && !quiereEmbestir)
-        {
-            enSaltoLargo = false;
-            DetenerEmbestida();
-        }
-
-        // 2. Lógica de Embestida en el suelo
-        if (quiereEmbestir)
-        {
-            if (Estado_Actual != EstadoAgil.Embistiendo)
-            {
-                IniciarEmbestida();
-            }
-
-            // Hace que Erik corra hacia adelante automáticamente aunque no presione W
-            if (inputs.move == Vector2.zero)
-            {
-                inputs.move = new Vector2(0f, 1f);
-            }
-            return;
-        }
-        else if (Estado_Actual == EstadoAgil.Embistiendo)
-        {
-            DetenerEmbestida();
-        }
-
-        // 3. Estados básicos: Corriendo (WASD) o En Reposo
         Estado_Actual = (inputs.move != Vector2.zero) ? EstadoAgil.Corriendo : EstadoAgil.En_Reposo;
+    }
+
+    private void ProcesarGiroPesadoEmbestida()
+    {
+        // 1. Frenar drásticamente la velocidad de giro de la cámara
+        inputs.look = Vector2.ClampMagnitude(inputs.look * sensibilidadCamaraEmbestida, limiteVelocidadCamara);
+
+        if (camaraPrincipal == null && Camera.main != null) camaraPrincipal = Camera.main.transform;
+        float anguloCamara = (camaraPrincipal != null) ? camaraPrincipal.eulerAngles.y : transform.eulerAngles.y;
+
+        // 2. Calcular hacia dónde intenta doblar el jugador con A/D o con la cámara
+        float intentoGiroTeclado = inputs.move.x * 45.0f;
+        float anguloObjetivo = anguloCamara + intentoGiroTeclado;
+
+        // 3. Limitar el giro real del personaje a unos pocos grados por segundo (difícil esquivar)
+        anguloCarreraActual = Mathf.MoveTowardsAngle(anguloCarreraActual, anguloObjetivo, gradosGiroPorSegundo * Time.deltaTime);
+        transform.rotation = Quaternion.Euler(0f, anguloCarreraActual, 0f);
+
+        // 4. Convertir el ángulo bloqueado al vector que lee ThirdPersonController
+        float rad = (anguloCarreraActual - anguloCamara) * Mathf.Deg2Rad;
+        inputs.move = new Vector2(Mathf.Sin(rad), Mathf.Cos(rad));
+    }
+
+    private bool PresionoToggleEmbestida()
+    {
+        bool toque = false;
+#if ENABLE_INPUT_SYSTEM
+        if (Keyboard.current != null && Keyboard.current.leftShiftKey.wasPressedThisFrame) toque = true;
+#else
+        if (Input.GetKeyDown(KeyCode.LeftShift)) toque = true;
+#endif
+        if (inputs.attack)
+        {
+            inputs.attack = false;
+            toque = true;
+        }
+        return toque;
     }
 
     private void IniciarEmbestida()
     {
-        Estado_Actual = EstadoAgil.Embistiendo;
-        controladorBase.MoveSpeed = velocidadEmbestida;
-        controladorBase.SprintSpeed = velocidadEmbestida;
-        controladorBase.RotationSmoothTime = giroDuroEmbestida;
-        Vel_Giro_Actual = 30f;
+        embestidaActiva = true;
+        anguloCarreraActual = transform.eulerAngles.y;
+
+        // Subimos el tiempo de suavizado para que no rote brusco
+        controladorBase.RotationSmoothTime = 0.8f;
+        if (saltoEnEmbestida > 0f) controladorBase.JumpHeight = saltoEnEmbestida;
 
         if (sensorCasco != null) sensorCasco.ActivarSensor(true);
         if (animator != null) animator.SetBool("Embistiendo", true);
@@ -158,77 +190,89 @@ public class AgilController : MonoBehaviour
 
     private void DetenerEmbestida()
     {
+        embestidaActiva = false;
+        inputs.sprint = false;
         inputs.attack = false;
-        controladorBase.canMove = true;
-        controladorBase.canJump = true;
-        controladorBase.MoveSpeed = velocidadBase;
-        controladorBase.SprintSpeed = velocidadBase;
-        controladorBase.RotationSmoothTime = giroNormalBase;
-        Vel_Giro_Actual = 360f;
+
+        controladorBase.RotationSmoothTime = giroNormalOriginal;
+        controladorBase.JumpHeight = saltoNormalOriginal;
 
         if (sensorCasco != null) sensorCasco.ActivarSensor(false);
         if (animator != null) animator.SetBool("Embistiendo", false);
     }
 
-    // --- LÓGICA DE CHOQUES (Romper bloques, dañar enemigos o aturdirse en muros) ---
     public void EvaluarImpactoEmbestida(Collider otro, Vector3 puntoImpacto, Vector3 normalImpacto)
     {
-        if (Estado_Actual != EstadoAgil.Embistiendo) return;
-        if (otro.transform.root == transform.root) return;
+        if (!embestidaActiva || otro.transform.root == transform.root) return;
 
-        // Regla 2: Romper bloque ("Rompible") o chocar Enemigo ("Enemigo")
+        // 1. Romper bloque ("Rompible") o golpear Enemigo ("Enemigo") -> 3s congelado + retroceso
         if (otro.CompareTag("Rompible") || otro.CompareTag("Enemigo"))
         {
-            if (otro.CompareTag("Rompible"))
-            {
-                Destroy(otro.gameObject);
-            }
-
-            AplicarRebote(fuerzaRebote * 0.7f);
-            DetenerEmbestida();
-            Estado_Actual = EstadoAgil.En_Reposo;
+            if (otro.CompareTag("Rompible")) Destroy(otro.gameObject);
+            AplicarPenalizacionAturdido(penalizacionMuroRompible, fuerzaRebote * 0.85f);
             return;
         }
 
-        // Regla 3: Choque contra pared sólida (Calcula si el ángulo es menor a 45 grados)
+        // 2. Chocar contra pared sólida (< 45 grados) -> 5s congelado + retroceso fuerte
         if (otro.CompareTag("Muro_Solido") || !otro.isTrigger)
         {
+            // Lanzamos un rayo corto al frente para obtener el ángulo exacto de la pared
+            if (Physics.Raycast(transform.position + Vector3.up * 0.8f, transform.forward, out RaycastHit hitInfo, 1.5f))
+            {
+                if (hitInfo.collider == otro) normalImpacto = hitInfo.normal;
+            }
+
             Vector3 normalPlana = new Vector3(normalImpacto.x, 0f, normalImpacto.z).normalized;
             if (Mathf.Abs(normalImpacto.y) > 0.5f || normalPlana == Vector3.zero) return;
 
-            float anguloChoque = Vector3.Angle(transform.forward, -normalPlana);
-
-            if (anguloChoque < 45f)
+            if (Vector3.Angle(transform.forward, -normalPlana) < 45f)
             {
-                // Choque frontal: rebota y se aturde 1.5s
-                DetenerEmbestida();
-                controladorBase.canMove = false;
-                controladorBase.canJump = false;
-                Tiempo_Aturdido = duracionAturdido;
-                AplicarRebote(fuerzaRebote);
-
-                Estado_Actual = EstadoAgil.Aturdido;
-                if (animator != null) animator.SetTrigger("Aturdido");
+                AplicarPenalizacionAturdido(penalizacionMuroSolido, fuerzaRebote);
             }
-            // Si es mayor a 45°, no entra al if y simplemente se desliza por la pared
         }
+    }
+
+    private void AplicarPenalizacionAturdido(float segundos, float rebote)
+    {
+        // Guardamos la dirección hacia atrás antes de detener la embestida
+        direccionRebote = -transform.forward * rebote;
+        timerRebote = duracionRebote;
+        Tiempo_Aturdido = segundos;
+
+        DetenerEmbestida();
+
+        // Apagamos temporalmente el controlador base para que no anule el retroceso ni mueva la cámara
+        controladorBase.canMove = false;
+        controladorBase.canJump = false;
+        controladorBase.LockCameraPosition = true;
+        controladorBase.enabled = false;
+
+        if (animator != null)
+        {
+            animator.SetFloat("Speed", 0f);
+            animator.SetFloat("MotionSpeed", 0f);
+            animator.SetTrigger("Aturdido");
+        }
+
+        Estado_Actual = EstadoAgil.Aturdido;
+    }
+
+    private void DesbloquearPersonajeYCamara()
+    {
+        controladorBase.enabled = true;
+        controladorBase.canMove = true;
+        controladorBase.canJump = true;
+        controladorBase.LockCameraPosition = false;
     }
 
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
-        if (Estado_Actual == EstadoAgil.Embistiendo && hit.moveDirection.y >= -0.3f)
+        if (embestidaActiva && hit.moveDirection.y >= -0.3f)
         {
             EvaluarImpactoEmbestida(hit.collider, hit.point, hit.normal);
         }
     }
 
-    private void AplicarRebote(float fuerza)
-    {
-        direccionRebote = -transform.forward * fuerza;
-        timerRebote = 0.25f;
-    }
-
-    // --- LÓGICA DE SALUD Y MUERTE ---
     public void RecibirDaño(int daño = 1)
     {
         if (Estado_Actual == EstadoAgil.Muerto) return;
@@ -239,16 +283,13 @@ public class AgilController : MonoBehaviour
             DetenerEmbestida();
             controladorBase.canMove = false;
             controladorBase.canJump = false;
+            controladorBase.LockCameraPosition = true;
+            controladorBase.enabled = false;
             Estado_Actual = EstadoAgil.Muerto;
             if (animator != null) animator.SetTrigger("Muerto");
         }
     }
 
-    // =========================================================================
-    // ESPACIO PARA COMPAÑEROS (Cambio de personaje / Interacción futura)
-    // =========================================================================
-
-    // El compañero que programe el cambio de Vikingo solo debe llamar a esta función:
     public void SetPersonajeActivo(bool activo)
     {
         Es_Activo = activo;
@@ -256,15 +297,18 @@ public class AgilController : MonoBehaviour
         {
             DetenerEmbestida();
             inputs.move = Vector2.zero;
+            inputs.look = Vector2.zero;
             inputs.jump = false;
             controladorBase.canMove = false;
             controladorBase.canJump = false;
-            Estado_Actual = EstadoAgil.En_Reposo;
+            controladorBase.LockCameraPosition = true;
+
+            if (Estado_Actual != EstadoAgil.Aturdido && Estado_Actual != EstadoAgil.Muerto)
+                Estado_Actual = EstadoAgil.En_Reposo;
         }
-        else
+        else if (Estado_Actual != EstadoAgil.Aturdido && Estado_Actual != EstadoAgil.Muerto)
         {
-            controladorBase.canMove = true;
-            controladorBase.canJump = true;
+            DesbloquearPersonajeYCamara();
         }
     }
 }

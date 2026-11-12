@@ -851,6 +851,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: PlayerAgil
       objectReference: {fileID: 0}
+    - target: {fileID: 8756459255946477655, guid: 2f19ad1dfabd11449a56d29c79610187, type: 3}
+      propertyPath: saltoBase
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8756459255946477655, guid: 2f19ad1dfabd11449a56d29c79610187, type: 3}
+      propertyPath: velocidadBase
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 8756459255946477655, guid: 2f19ad1dfabd11449a56d29c79610187, type: 3}
+      propertyPath: velocidadEmbestida
+      value: 12
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -1,87 +1,69 @@
 using UnityEngine;
 
-[RequireComponent(typeof(LineRenderer))]
 public class ArmaDistancia : MonoBehaviour
 {
-    [Header("Configuración de Disparo")]
+    [Header("Configuración de Disparo (Precisión Total a la Mira)")]
     public GameObject prefabProyectil;
-    public float fuerzaDisparo = 18f;
-    public float inclinacionArriba = 0.25f;
+    public float velocidadDisparo = 45f;
+    public float distanciaRecta = 35f;
+    public float gravedadCaida = 20f;
 
-    [Header("Configuración de Línea")]
-    public int puntosLinea = 30;
-    public float separacionTiempo = 0.05f;
+    [Header("Cadencia de Tiro (Cooldown)")]
+    public float tiempoEntreDisparos = 1.5f;  // Segundos de espera entre piedra y piedra
+    private float proximoDisparoPermitido = 0f;
 
-    private LineRenderer lineaTrayectoria;
-    private Transform camaraPrincipal;
+    private Camera camaraComp;
+    private Transform raizJugador;
 
     private void Awake()
     {
-        lineaTrayectoria = GetComponent<LineRenderer>();
-        camaraPrincipal = Camera.main.transform;
-        lineaTrayectoria.enabled = false;
-    }
-
-    private void OnDisable()
-    {
-        if (lineaTrayectoria != null) lineaTrayectoria.enabled = false;
-    }
-
-    public Vector3 CalcularVelocidadInicial()
-    {
-        Ray rayoCentro = new Ray(camaraPrincipal.position, camaraPrincipal.forward);
-        Vector3 puntoObjetivo;
-
-        if (Physics.Raycast(rayoCentro, out RaycastHit hit, 50f))
-        {
-            puntoObjetivo = hit.point;
-        }
-        else
-        {
-            puntoObjetivo = camaraPrincipal.position + camaraPrincipal.forward * 30f;
-        }
-
-        Vector3 direccionHaciaMira = (puntoObjetivo - transform.position).normalized;
-
-        Vector3 direccionFinal = (direccionHaciaMira + Vector3.up * inclinacionArriba).normalized;
-        return direccionFinal * fuerzaDisparo;
-    }
-
-    public void MostrarTrayectoria(bool estado)
-    {
-        if (lineaTrayectoria == null) return;
-
-        lineaTrayectoria.enabled = estado;
-        if (!estado) return;
-
-        lineaTrayectoria.positionCount = puntosLinea;
-        Vector3 velocidadInicial = CalcularVelocidadInicial();
-        Vector3 posicionOrigen = transform.position; // Sale directo desde la honda en la mano
-
-        for (int i = 0; i < puntosLinea; i++)
-        {
-            float t = i * separacionTiempo;
-            Vector3 puntoEnCurva = posicionOrigen + (velocidadInicial * t) + (0.5f * Physics.gravity * (t * t));
-            lineaTrayectoria.SetPosition(i, puntoEnCurva);
-        }
+        camaraComp = Camera.main;
+        raizJugador = transform.root;
     }
 
     public void Disparar()
     {
-        if (prefabProyectil == null) return;
+         if (Time.time < proximoDisparoPermitido) return;
 
-        GameObject proyectil = Instantiate(prefabProyectil, transform.position, Quaternion.identity);
-        Collider colProyectil = proyectil.GetComponent<Collider>();
-        CharacterController colRudo = GetComponentInParent<CharacterController>();
-        if (colProyectil != null && colRudo != null)
+        if (prefabProyectil == null || camaraComp == null) return;
+
+        // Registramos el momento exacto en el que podrá volver a disparar
+        proximoDisparoPermitido = Time.time + tiempoEntreDisparos;
+
+        //Rayo matemático exacto desde el centro (0.5, 0.5) de la pantalla
+        Ray rayoCentroPantalla = camaraComp.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+
+        Vector3 puntoObjetivo = rayoCentroPantalla.GetPoint(distanciaRecta);
+        float distanciaViajeRecto = distanciaRecta;
+
+        // Buscamos qué hay bajo la mira ignorando al propio Rudo
+        RaycastHit[] impactos = Physics.RaycastAll(rayoCentroPantalla, distanciaRecta, ~0, QueryTriggerInteraction.Ignore);
+        float menorDistancia = Mathf.Infinity;
+
+        foreach (RaycastHit hit in impactos)
         {
-            Physics.IgnoreCollision(colProyectil, colRudo);
+            if (raizJugador != null && hit.transform.IsChildOf(raizJugador)) continue;
+            if (hit.distance < 1.5f) continue;
+
+            if (hit.distance < menorDistancia)
+            {
+                menorDistancia = hit.distance;
+                puntoObjetivo = hit.point;
+            }
         }
 
-        Rigidbody rb = proyectil.GetComponent<Rigidbody>();
-        if (rb != null)
+        // Calculamos el vector directo desde la mano hasta el punto bajo la mira
+        Vector3 vectorHaciaMira = puntoObjetivo - transform.position;
+        Vector3 direccionDisparo = vectorHaciaMira.normalized;
+        distanciaViajeRecto = vectorHaciaMira.magnitude;
+
+        // Instanciamos y lanzamos la piedra
+        GameObject proyectilObj = Instantiate(prefabProyectil, transform.position, Quaternion.LookRotation(direccionDisparo));
+        ProyectilPiedra scriptPiedra = proyectilObj.GetComponent<ProyectilPiedra>();
+
+        if (scriptPiedra != null)
         {
-            rb.linearVelocity = CalcularVelocidadInicial();
+            scriptPiedra.Inicializar(direccionDisparo, velocidadDisparo, distanciaViajeRecto, gravedadCaida, raizJugador);
         }
     }
 }

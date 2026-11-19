@@ -19,6 +19,18 @@ public class FuerteController : MonoBehaviour
     [SerializeField] private float gravedadPlaneando = 2.0f;
     [SerializeField] private float velocidadCaidaMaximaPlaneando = -2.0f;
 
+    [Header("Velocidad Horizontal de Planeo")]
+    [Tooltip("Velocidad de movimiento al comenzar a planear, en metros por segundo.")]
+    [SerializeField, Min(0f)] private float velocidadInicialPlaneo = 4f;
+    [Tooltip("Limite de velocidad horizontal al mantener movimiento en cualquier direccion.")]
+    [SerializeField, Min(0f)] private float velocidadMaximaPlaneo = 10f;
+    [Tooltip("Segundos de movimiento continuo planeando antes de acelerar. Se reinicia al soltar el movimiento o dejar de planear.")]
+    [SerializeField, Min(0f)] private float tiempoAntesDeAcelerar = 2f;
+    [Tooltip("Cuanto aumenta la velocidad por segundo mientras se mueve planeando, despues de la espera.")]
+    [SerializeField, Min(0f)] private float aceleracionPlaneo = 3f;
+    [Tooltip("Cuanto disminuye la velocidad por segundo al dejar de moverse o durante la espera.")]
+    [SerializeField, Min(0f)] private float desaceleracionPlaneo = 5f;
+
     [Header("Z-Targeting (Apuntado Zelda)")]
     [SerializeField] private LayerMask capaEnemigos;
     [SerializeField] private float radioDeteccion = 15f;
@@ -38,6 +50,8 @@ public class FuerteController : MonoBehaviour
 
     private Transform objetivoActual;
     private bool estaBloqueandoArriba = false;
+    private float velocidadPlaneoActual;
+    private float tiempoMovimientoPlaneo;
     private Cinemachine3rdPersonFollow componenteTerceraPersona;
 
     // --- VARIABLES DE INERCIA
@@ -63,6 +77,7 @@ public class FuerteController : MonoBehaviour
 
         controladorTerceraPersona.SprintSpeed = velocidadBase;
         controladorTerceraPersona.MoveSpeed = velocidadBase;
+        velocidadPlaneoActual = velocidadInicialPlaneo;
 
         if (camaraFijacion != null)
         {
@@ -96,6 +111,7 @@ public class FuerteController : MonoBehaviour
         }
 
         GestionarPlaneo();
+        GestionarVelocidadPlaneo();
     }
 
     private void LateUpdate()
@@ -211,13 +227,52 @@ public class FuerteController : MonoBehaviour
         }
     }
 
+    private void GestionarVelocidadPlaneo()
+    {
+        bool planeando = estaBloqueandoArriba && !controladorTerceraPersona.Grounded;
+
+        if (!planeando)
+        {
+            tiempoMovimientoPlaneo = 0f;
+            velocidadPlaneoActual = Mathf.Max(0f, velocidadInicialPlaneo);
+            controladorTerceraPersona.MoveSpeed = velocidadBase;
+            controladorTerceraPersona.SprintSpeed = velocidadBase;
+            return;
+        }
+
+        float velocidadInicial = Mathf.Max(0f, velocidadInicialPlaneo);
+        float limite = Mathf.Max(velocidadInicial, velocidadMaximaPlaneo);
+        velocidadPlaneoActual = Mathf.Clamp(velocidadPlaneoActual, velocidadInicial, limite);
+
+        bool moviendose = entradasPlantilla.move.sqrMagnitude > 0.01f
+            && controladorTerceraPersona.canMove;
+        float espera = Mathf.Max(0f, tiempoAntesDeAcelerar);
+
+        tiempoMovimientoPlaneo = moviendose
+            ? Mathf.Min(tiempoMovimientoPlaneo + Time.deltaTime, espera)
+            : 0f;
+
+        bool acelerar = moviendose && tiempoMovimientoPlaneo >= espera;
+        float objetivo = acelerar ? limite : velocidadInicial;
+        float cambio = acelerar ? aceleracionPlaneo : desaceleracionPlaneo;
+
+        velocidadPlaneoActual = Mathf.MoveTowards(
+            velocidadPlaneoActual,
+            objetivo,
+            Mathf.Max(0f, cambio) * Time.deltaTime
+        );
+
+        controladorTerceraPersona.MoveSpeed = velocidadPlaneoActual;
+        controladorTerceraPersona.SprintSpeed = velocidadPlaneoActual;
+    }
+
     private void GestionarPlaneo()
     {
         bool estaEnElAire = !controladorTerceraPersona.Grounded;
 
         if (estaBloqueandoArriba && estaEnElAire)
         {
-            controladorTerceraPersona.Gravity = gravedadPlaneando;
+            controladorTerceraPersona.Gravity = -Mathf.Abs(gravedadPlaneando);
 
             if (campoVelocidadCaida != null)
             {
@@ -230,7 +285,7 @@ public class FuerteController : MonoBehaviour
         }
         else
         {
-            controladorTerceraPersona.Gravity = gravedadNormal;
+            controladorTerceraPersona.Gravity = -Mathf.Abs(gravedadNormal);
         }
     }
 }

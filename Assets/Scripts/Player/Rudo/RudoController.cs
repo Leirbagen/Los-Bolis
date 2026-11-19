@@ -12,7 +12,7 @@ public class RudoController : MonoBehaviour
     public GameObject prefabArma;
     public GameObject prefabHonda;
 
-    [Header("Cámara de Apuntado")]
+    [Header("Cámara y UI de Apuntado")]
     public GameObject camaraApuntado;
     public GameObject miraUI;
 
@@ -48,12 +48,17 @@ public class RudoController : MonoBehaviour
             scriptHonda = nuevaHonda.GetComponent<ArmaDistancia>();
         }
 
-        if (camaraApuntado != null)
-        {
-            camaraApuntado.SetActive(false);
-        }
+        if (camaraApuntado != null) camaraApuntado.SetActive(false);
+        if (miraUI != null) miraUI.SetActive(false);
 
         CambiarArma(1);
+    }
+
+    private void OnDisable()
+    {
+        if (camaraApuntado != null) camaraApuntado.SetActive(false);
+        if (miraUI != null) miraUI.SetActive(false);
+        if (controladorBase != null) controladorBase.isStrafing = false;
     }
 
     private void Update()
@@ -84,18 +89,11 @@ public class RudoController : MonoBehaviour
                 controladorBase.isStrafing = true;
                 inputs.move.y = 0f;
                 inputs.sprint = false;
-                // Encendemos la cámara de hombro,  Cinemachine hace el zoom solo
-                if (camaraApuntado != null && !camaraApuntado.activeSelf)
-                {
-                    camaraApuntado.SetActive(true);
-                }
-                if (miraUI != null && !miraUI.activeSelf) 
-                {
-                    miraUI.SetActive(true);
-                }
+
+                if (camaraApuntado != null && !camaraApuntado.activeSelf) camaraApuntado.SetActive(true);
+                if (miraUI != null && !miraUI.activeSelf) miraUI.SetActive(true);
 
                 RotarConCamara();
-                scriptHonda.MostrarTrayectoria(true);
 
                 if (inputs.attack)
                 {
@@ -106,17 +104,10 @@ public class RudoController : MonoBehaviour
             else
             {
                 controladorBase.isStrafing = false;
-                // Apagamos la cámara de hombro para regresar a PlayerFollowCamera
-                if (camaraApuntado != null && camaraApuntado.activeSelf)
-                {
-                    camaraApuntado.SetActive(false);
-                }
-                if (miraUI != null && miraUI.activeSelf)
-                {
-                    miraUI.SetActive(false);
-                }
 
-                scriptHonda.MostrarTrayectoria(false);
+                if (camaraApuntado != null && camaraApuntado.activeSelf) camaraApuntado.SetActive(false);
+                if (miraUI != null && miraUI.activeSelf) miraUI.SetActive(false);
+
                 controladorBase.canMove = true;
                 inputs.attack = false;
             }

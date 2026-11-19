@@ -3,11 +3,13 @@ using System;
 
 public class SkeletonHealth : MonoBehaviour
 {
-    public int vidas = 3;
-    public int maxVidas = 5;
+    [Header("Configuración de Salud")]
+    public int maxVidas = 3;
+    public int vidas;
 
-    // Evento para avisar a la UI que la vida cambió (ya sea daño o curación)
     public static event Action OnCualquierVidaCambiada;
+
+    private float proximoDanoPermitido = 0f;
 
     private void OnEnable()
     {
@@ -19,19 +21,38 @@ public class SkeletonHealth : MonoBehaviour
         GameManager.OnMuerteGlobal -= Morir;
     }
 
+    private void Awake()
+    {
+        vidas = maxVidas;
+    }
+
     private void Start()
     {
-        // Nos aseguramos de que siempre inicien con 3 vidas al dar Play
-        vidas = 3;
-        OnCualquierVidaCambiada?.Invoke(); // Actualiza los textos al iniciar
+        OnCualquierVidaCambiada?.Invoke();
+    }
+
+    // Unity llama a este método automáticamente cuando el CharacterController choca físicamente con un objeto sólido
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (Time.time < proximoDanoPermitido) return;
+
+        // Buscamos si el objeto sólido contra el que chocamos tiene el script EnemyDano
+        EnemyDano peligro = hit.gameObject.GetComponentInParent<EnemyDano>();
+
+        if (peligro != null)
+        {
+            RecibirDano(peligro.dano);
+            proximoDanoPermitido = Time.time + peligro.tiempoEntreDanos;
+        }
     }
 
     public void RecibirDano(int cantidad)
     {
-        vidas -= cantidad;
-        Debug.Log("[-] " + gameObject.name + " recibió daño. Vidas restantes: " + vidas);
+        if (vidas <= 0) return;
 
-        OnCualquierVidaCambiada?.Invoke(); // Avisa a la pantalla que actualice los números
+        vidas = Mathf.Clamp(vidas - cantidad, 0, maxVidas);
+        Debug.Log("[-] " + gameObject.name + " recibió daño. Vidas: " + vidas);
+        OnCualquierVidaCambiada?.Invoke();
 
         if (vidas <= 0)
         {
@@ -39,24 +60,12 @@ public class SkeletonHealth : MonoBehaviour
         }
     }
 
-    // NUEVO: Método para curarse con la fruta
     public void Curar(int cantidad)
     {
-        if (vidas < maxVidas)
-        {
-            vidas += cantidad;
+        if (vidas >= maxVidas) return;
 
-            // Si por alguna razón se pasa de 5, lo limitamos a 5
-            if (vidas > maxVidas) vidas = maxVidas;
-
-            Debug.Log("[+] " + gameObject.name + " comió una fruta. Se incrementó la vida. Vidas actuales: " + vidas);
-
-            OnCualquierVidaCambiada?.Invoke(); // Avisa a la pantalla
-        }
-        else
-        {
-            Debug.Log(gameObject.name + " intentó comer una fruta, pero ya tiene la vida al máximo (" + maxVidas + ").");
-        }
+        vidas = Mathf.Clamp(vidas + cantidad, 0, maxVidas);
+        OnCualquierVidaCambiada?.Invoke();
     }
 
     private void Morir()

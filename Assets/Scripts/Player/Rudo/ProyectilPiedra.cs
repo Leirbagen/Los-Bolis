@@ -2,9 +2,10 @@ using UnityEngine;
 
 public class ProyectilPiedra : MonoBehaviour
 {
-    [Header("Detección y Efecto Post-Impacto")]
+    [Header("Detección de Impacto")]
     public float radioColision = 0.08f;
-    public bool caerConFisicaAlChocar = true;
+
+    public GameObject prefabEfectoImpacto;
 
     private Vector3 velocidadActual;
     private float distanciaRecorrida = 0f;
@@ -13,6 +14,7 @@ public class ProyectilPiedra : MonoBehaviour
     private Transform dueñoDisparo;
     private bool inicializado = false;
     private bool haImpactado = false;
+
 
     public void Inicializar(Vector3 direccion, float velocidad, float distRecta, float grav, Transform dueño)
     {
@@ -32,8 +34,6 @@ public class ProyectilPiedra : MonoBehaviour
         Vector3 posicionActual = transform.position;
         float delta = Time.deltaTime;
 
-        // La piedra viaja 100% en línea recta hasta alcanzar la distancia exacta donde está tu mira.
-        // Recién cuando pasa ese punto , empieza a curvarse y caer.
         if (distanciaRecorrida >= distanciaSinGravedad)
         {
             velocidadActual += Vector3.down * (gravedad * delta);
@@ -44,7 +44,6 @@ public class ProyectilPiedra : MonoBehaviour
 
         if (distanciaPaso > 0.0001f)
         {
-            // Usamos RaycastAll/SphereCastAll para asegurarnos de que jamás choque con el cuerpo de Rudo al salir
             RaycastHit[] hits = Physics.SphereCastAll(posicionActual, radioColision, desplazamiento.normalized, distanciaPaso, ~0, QueryTriggerInteraction.Ignore);
 
             RaycastHit impactoValido = new RaycastHit();
@@ -82,31 +81,16 @@ public class ProyectilPiedra : MonoBehaviour
     private void ProcesarImpacto(RaycastHit hit)
     {
         haImpactado = true;
-        transform.position = hit.point + (hit.normal * radioColision);
+
+        Quaternion rotacionImpacto = Quaternion.LookRotation(hit.normal);
+        Instantiate(prefabEfectoImpacto, hit.point, rotacionImpacto);
 
         if (hit.collider.CompareTag("Enemigo"))
         {
-            Debug.Log("¡Impacto clavado en la mira contra: " + hit.collider.name + "!");
-        }
-        else if (hit.collider.CompareTag("Switch"))
-        {
-            Debug.Log("¡Interruptor activado!");
-        }
-
-        if (caerConFisicaAlChocar)
-        {
-            SphereCollider col = gameObject.AddComponent<SphereCollider>();
-            col.radius = radioColision;
-
-            Rigidbody rb = gameObject.AddComponent<Rigidbody>();
-            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-            rb.linearVelocity = Vector3.Reflect(velocidadActual.normalized, hit.normal) * 2.5f;
-
-            Destroy(gameObject, 2f);
-        }
-        else
-        {
+            Debug.Log("Impacto clavado en la mira contra: " + hit.collider.name + "");
             Destroy(gameObject);
+
         }
+        Destroy(gameObject);
     }
 }

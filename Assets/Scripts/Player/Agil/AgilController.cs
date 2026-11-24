@@ -299,7 +299,7 @@ public class AgilController : MonoBehaviour
         if (!embestidaActiva || otro.transform.root == transform.root) return;
 
         // Ignorar el escudo si lo pisa desde arriba
-        if (otro.CompareTag("Escudo_Olaf") && normalImpacto.y > 0.5f) return;
+        if (otro.CompareTag("Escudo_Fuerte") && normalImpacto.y > 0.5f) return;
 
         if (otro.CompareTag("Rompible") || otro.CompareTag("Enemigo"))
         {

@@ -28,6 +28,7 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        AudioManager.Instancia?.ReproducirMusica("Musica Fondo");
         CambiarEstado(0, true);
         OnPersonajeCambiado?.Invoke(0);
     }

@@ -2364,6 +2364,60 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1701701324
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1701701326}
+  - component: {fileID: 1701701325}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 5132851093641282708, guid: 0000000000000000d000000000000000, type: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1701701325
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1701701324}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b8e35dc611ae5643869170554b706d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fuenteMusica: {fileID: 0}
+  fuenteSFX: {fileID: 0}
+  listaSFX:
+  - nombre: GolpearKinsa
+    clip: {fileID: 8300000, guid: 35777a5f900136b48ab4698797f232fe, type: 3}
+    volumen: 1
+  listaMusica:
+  - nombre: Musica Fondo
+    clip: {fileID: 8300000, guid: b58e567b3bdd6924c921aa6be18b138b, type: 3}
+    volumen: 1
+--- !u!4 &1701701326
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1701701324}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -4.5037746, y: 5.576287, z: 2.8446584}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1792597147
 GameObject:
   m_ObjectHideFlags: 0
@@ -2612,15 +2666,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409503, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.9490783
+      value: 2.09
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409503, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 20.30458
+      value: 2.0445805
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409503, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -12.110001
+      value: -5.3100004
       objectReference: {fileID: 0}
     - target: {fileID: 8944336655422409503, guid: fc43b2bb34f4f364d84657f57be930a3, type: 3}
       propertyPath: m_LocalRotation.w
@@ -3297,3 +3351,4 @@ SceneRoots:
   - {fileID: 144220570}
   - {fileID: 1148281368}
   - {fileID: 1264826559}
+  - {fileID: 1701701326}

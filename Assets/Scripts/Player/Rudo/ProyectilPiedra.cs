@@ -82,15 +82,23 @@ public class ProyectilPiedra : MonoBehaviour
     {
         haImpactado = true;
 
-        Quaternion rotacionImpacto = Quaternion.LookRotation(hit.normal);
-        Instantiate(prefabEfectoImpacto, hit.point, rotacionImpacto);
+        if (prefabEfectoImpacto != null)
+        {
+            Quaternion rotacionImpacto = Quaternion.LookRotation(hit.normal);
+            Instantiate(prefabEfectoImpacto, hit.point, rotacionImpacto);
+        }
+
+        SwitchInteractivo switchGolpeado = hit.collider.GetComponentInParent<SwitchInteractivo>();
+        if (switchGolpeado != null && switchGolpeado.tipo == SwitchInteractivo.TipoSwitch.Boton_O_Palanca)
+        {
+            switchGolpeado.IntentarAlternar();
+        }
 
         if (hit.collider.CompareTag("Enemigo"))
         {
-            Debug.Log("Impacto clavado en la mira contra: " + hit.collider.name + "");
-            Destroy(gameObject);
-
+            Debug.Log("Impacto : " + hit.collider.name);
         }
+
         Destroy(gameObject);
     }
 }

@@ -102,8 +102,9 @@ public class MenuInventarioUI : MonoBehaviour
     [SerializeField] private Color colorRecuadroTransferencia = Color.yellow;
     [SerializeField, Min(1f)] private float grosorBordeTransferencia = 4f;
 
-    [Header("Uso de bombas")]
+    [Header("Uso de objetos")]
     [SerializeField] private ColocadorBombas colocadorBombas;
+    [SerializeField] private UsoLlaves usoLlaves;
 
     [Header("Referencias del menú")]
     [SerializeField] private PausaInventario pausaInventario;
@@ -142,6 +143,11 @@ public class MenuInventarioUI : MonoBehaviour
         if (colocadorBombas == null)
         {
             colocadorBombas = GetComponent<ColocadorBombas>();
+        }
+
+        if (usoLlaves == null)
+        {
+            usoLlaves = GetComponent<UsoLlaves>();
         }
 
         if (panelBarraInventario == gameObject)
@@ -606,6 +612,13 @@ public class MenuInventarioUI : MonoBehaviour
                 if (colocadorBombas != null)
                 {
                     colocadorBombas.IntentarColocar(armadura, inventario, indiceSeleccionado);
+                }
+                break;
+
+            case TipoItem.Llave:
+                if (usoLlaves != null)
+                {
+                    usoLlaves.IntentarUsar(armadura, inventario, indiceSeleccionado);
                 }
                 break;
         }

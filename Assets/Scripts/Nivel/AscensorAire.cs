@@ -13,6 +13,8 @@ public class AscensorAire : MonoBehaviour
     [Header("2. Física del Aire y Flotación")]
     [Tooltip("Velocidad a la que sube el personaje por la columna de aire")]
     public float velocidadSubida = 6.0f;
+    [Tooltip("Velocidad extra de movimiento horizontal mientras flota en el aire")]
+    public float velocidadHorizontalAire = 1.5f;
     [Tooltip("Distancia debajo del techo del collider donde el personaje queda flotando")]
     public float margenSuperior = 0.6f;
     [Tooltip("Qué tanto sube y baja suavemente al llegar a la cima")]
@@ -29,6 +31,7 @@ public class AscensorAire : MonoBehaviour
     {
         public CharacterController cc;
         public ThirdPersonController tpc;
+        public StarterAssetsInputs inputs;
         public float gravedadOriginal;
         public bool flotando;
     }
@@ -119,7 +122,24 @@ public class AscensorAire : MonoBehaviour
             velocidadY = (objetivoFlote - trJugador.position.y) * 5.0f;
         }
 
-        datos.cc.Move(new Vector3(0f, velocidadY * Time.deltaTime, 0f));
+        // Empuje horizontal regulable relativo a la cámara (solo para el personaje activo)
+        Vector3 movimientoHorizontal = Vector3.zero;
+        bool esPersonajeActivo = (datos.tpc == null || datos.tpc.enabled);
+
+        if (esPersonajeActivo && datos.inputs != null && datos.inputs.move.sqrMagnitude > 0.01f && Camera.main != null)
+        {
+            Transform cam = Camera.main.transform;
+            Vector3 adelante = cam.forward;
+            Vector3 derecha = cam.right;
+            adelante.y = 0f;
+            derecha.y = 0f;
+
+            Vector3 direccion = (adelante.normalized * datos.inputs.move.y + derecha.normalized * datos.inputs.move.x).normalized;
+            movimientoHorizontal = direccion * velocidadHorizontalAire;
+        }
+
+        Vector3 movimientoFinal = new Vector3(movimientoHorizontal.x, velocidadY, movimientoHorizontal.z);
+        datos.cc.Move(movimientoFinal * Time.deltaTime);
     }
 
     private void ActivarFlotacion(DatosJugador datos)
@@ -157,10 +177,13 @@ public class AscensorAire : MonoBehaviour
         if (!jugadoresEnZona.ContainsKey(other.gameObject))
         {
             ThirdPersonController tpc = other.GetComponent<ThirdPersonController>();
+            StarterAssetsInputs inputs = other.GetComponent<StarterAssetsInputs>();
+
             jugadoresEnZona.Add(other.gameObject, new DatosJugador
             {
                 cc = cc,
                 tpc = tpc,
+                inputs = inputs,
                 gravedadOriginal = (tpc != null && Mathf.Abs(tpc.Gravity) > 0.1f) ? tpc.Gravity : -15.0f,
                 flotando = false
             });

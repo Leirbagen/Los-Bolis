@@ -22,6 +22,7 @@ public class ArmaMelee : MonoBehaviour
     {
         if (other.CompareTag("Enemigo")) 
         {
+            AudioManager.Instancia?.ReproducirSFX("GolpearKinsa");
             Debug.Log("haciendo daño a " + other.gameObject.name);
         }
     }
